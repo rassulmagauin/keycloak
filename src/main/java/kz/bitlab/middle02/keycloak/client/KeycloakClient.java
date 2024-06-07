@@ -42,6 +42,21 @@ public class KeycloakClient {
     private String clientSecret;
 
     public UserRepresentation createUser(CreateUserDTO createUserDTO) {
+        UserRepresentation user = getUserRepresentation(createUserDTO);
+
+        Response response = keycloak.realm(realm).users().create(user);
+
+        if (response.getStatus() != HttpStatus.CREATED.value()) {
+            log.error("Failed to create user in keycloak: {}", response.getStatus());
+            throw new RuntimeException("Failed to create user in keycloak, status: " + response.getStatus());
+        }
+
+        List<UserRepresentation> userList = keycloak.realm(realm).users().search(createUserDTO.getUsername());
+        return userList.get(0);
+
+    }
+
+    private static UserRepresentation getUserRepresentation(CreateUserDTO createUserDTO) {
         UserRepresentation user = new UserRepresentation();
         user.setUsername(createUserDTO.getUsername());
         user.setEmail(createUserDTO.getEmail());
@@ -54,17 +69,7 @@ public class KeycloakClient {
         credential.setValue(createUserDTO.getPassword());
         credential.setTemporary(false);
         user.setCredentials(List.of(credential));
-
-        Response response = keycloak.realm(realm).users().create(user);
-
-        if (response.getStatus() != HttpStatus.CREATED.value()) {
-            log.error("Failed to create user in keycloak: {}", response.getStatus());
-            throw new RuntimeException("Failed to create user in keycloak, status: " + response.getStatus());
-        }
-
-        List<UserRepresentation> userList = keycloak.realm(realm).users().search(createUserDTO.getUsername());
-        return userList.get(0);
-
+        return user;
     }
 
     public UserTokenDTO signIn(UserLoginDTO userLoginDTO) {
